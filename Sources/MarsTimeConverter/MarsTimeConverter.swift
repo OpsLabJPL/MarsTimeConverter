@@ -7,33 +7,44 @@
 
 import Foundation
 
-public struct MarsTime {
-    public var jdut:Double = 0
-    public var tt_utc_diff:Double = 0
-    public var jdtt:Double = 0
-    public var deltaJ2000:Double = 0
-    public var marsMeanAnomaly:Double = 0
-    public var angleFictiousMeanSun:Double = 0
-    public var pbs:Double = 0
-    public var v_M_diff:Double = 0
-    public var ls:Double = 0
-    public var eot:Double = 0
-    public var msd:Double = 0
-    public var mtc:Double = 0
-    public var lmst:Double = 0
-    public var ltst:Double = 0
-}
-
-enum Lander {
+public enum Lander {
     case MSL
     case M20
 }
 
-open class MarsTimeConversion {
-    static let EARTH_SECS_PER_MARS_SEC = 1.027491252
-    static let CURIOSITY_WEST_LONGITUDE = 137.4
-    static let PERSERVERANCE_WEST_LONGITUDE = 77.43
-    static let DEG_TO_RAD = Double.pi/180.0
+public class MarsTimeConversion {
+    
+    public static func getMarsTime(for lander: Lander = .M20, date: Date) -> (String, String) {
+        let now = date
+        let westLon = longitude(for: lander)
+        let (_, _, _, _, _, _, _, _, _, _, msd, mtc, _, _) = MarsTimeConversion.getMarsTimes(now as Date, longitude: westLon)
+        let sol = Int(msd-(360.0-westLon)/360.0)-Int(epochSeconds(for: lander))
+        let sol5d = String(format:"%05d", sol)
+        let mtcInHours:Double = MarsTimeConversion.canonicalValue24(mtc - (360.0-westLon)*24.0/360.0)
+        let hour:Int = Int(mtcInHours)
+        let hours = String(format:"%02d", hour)
+        let minute:Int = Int((mtcInHours-Double(hour))*60.0)
+        let minutes = String(format:"%02d", minute)
+        let secondDouble:Double = (mtcInHours-Double(hour))*3600.0 - Double(minute)*60.0
+        let second:Int = Int(secondDouble)
+        let seconds = String(format:"%02d", second)
+        let lmst = String("Sol \(sol5d)M\(hours):\(minutes):\(seconds)")
+        print(lmst)
+
+        let utcTime = MarsTimeConversion.getUTCTime(for: lander, sol, hours: hour, minutes: minute, seconds: secondDouble)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        formatter.timeZone = TimeZone(abbreviation: "UTC")!
+        let utc = formatter.string(from: utcTime)
+        print(utc)
+
+        return (lmst, utc)
+    }
+    
+    fileprivate static let EARTH_SECS_PER_MARS_SEC = 1.027491252
+    fileprivate static let CURIOSITY_WEST_LONGITUDE = 137.4
+    fileprivate static let PERSERVERANCE_WEST_LONGITUDE = 77.43
+    fileprivate static let DEG_TO_RAD = Double.pi/180.0
 
     //    i     Ai     τi     φi
     //    1     0.0071     2.2353     49.409
@@ -43,9 +54,9 @@ open class MarsTimeConversion {
     //    5     0.0021     2.1354     15.704
     //    6     0.0020     2.4694     95.528
     //    7     0.0018     32.8493 49.095
-    static let A = [ 0.0071, 0.0057, 0.0039, 0.0037, 0.0021, 0.0020, 0.0018 ]
-    static let tau = [ 2.2353, 2.7543, 1.1177, 15.7866, 2.1354, 2.4694, 32.8493 ]
-    static let psi = [ 49.409, 168.173, 191.837, 21.736, 15.704, 95.528, 49.095 ]
+    fileprivate static let A = [ 0.0071, 0.0057, 0.0039, 0.0037, 0.0021, 0.0020, 0.0018 ]
+    fileprivate static let tau = [ 2.2353, 2.7543, 1.1177, 15.7866, 2.1354, 2.4694, 32.8493 ]
+    fileprivate static let psi = [ 49.409, 168.173, 191.837, 21.736, 15.704, 95.528, 49.095 ]
 
     /* TABLE OF LEAP SECONDS: ftp://maia.usno.navy.mil/ser7/tai-utc.dat
      1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
@@ -93,7 +104,7 @@ open class MarsTimeConversion {
      */
 
     /* return the TAI-UTC lookup table value of leap seconds for a given date */
-    static func taiutc(_ date:Date) -> (Double) {
+    fileprivate static func taiutc(_ date:Date) -> (Double) {
         let julianDate = getJulianDate(date)
         if julianDate >= 2457754.5 {
             return 37.0
@@ -223,7 +234,7 @@ open class MarsTimeConversion {
         return 0
     }
 
-    static func canonicalValue24(_ hours:Double) -> (Double) {
+    fileprivate static func canonicalValue24(_ hours:Double) -> (Double) {
         if hours < 0 {
             return 24 + hours
         }
@@ -233,7 +244,7 @@ open class MarsTimeConversion {
         return hours
     }
 
-    static func getMarsTime(_ date:Date, longitude:Double) -> MarsTime {
+    fileprivate static func getMarsTime(_ date:Date, longitude:Double) -> MarsTime {
         let times = getMarsTimes(date, longitude: longitude)
         var time = MarsTime()
         time.jdut = times.0
@@ -253,7 +264,7 @@ open class MarsTimeConversion {
         return time
     }
 
-    static func getMarsTimes(_ date:Date, longitude:Double) -> (Double,Double,Double,Double,Double,Double,Double,Double,Double,Double,Double,Double,Double,Double) {
+    fileprivate static func getMarsTimes(_ date:Date, longitude:Double) -> (Double,Double,Double,Double,Double,Double,Double,Double,Double,Double,Double,Double,Double,Double) {
         //A-1 millis since Jan 1 1970
         //    NSTimeInterval millis = 1000 * [date timeIntervalSince1970]
 
@@ -323,18 +334,18 @@ open class MarsTimeConversion {
         return (jdut, tt_utc_diff, jdtt, deltaJ2000, marsMeanAnomaly, angleFictiousMeanSun, pbs, v_M_diff, ls, eot, msd, mtc, lmst, ltst)
     }
 
-    static func getJulianDate(_ date:Date) -> (Double) {
+    fileprivate static func getJulianDate(_ date:Date) -> (Double) {
         return date.timeIntervalSince1970 / 86400.0 + 2440587.5
     }
 
     /**
      return timeIntervalSince1970 in seconds to construct NSDate
      */
-    static func convertFromJulianDateToCanonicalDate(_ julian:Double) -> (Double) {
+    fileprivate static func convertFromJulianDateToCanonicalDate(_ julian:Double) -> (Double) {
         return (julian - 2440587.5) * 86400.0
     }
 
-    static func epochSeconds(for lander: Lander) -> Double {
+    fileprivate static func epochSeconds(for lander: Lander) -> Double {
         switch lander {
         case .M20:
             return 52303.0
@@ -343,7 +354,7 @@ open class MarsTimeConversion {
         }
     }
 
-    static func getUTCTime(for lander: Lander = .M20, _ sol:Int, hours:Int, minutes:Int, seconds:Double) -> (Date) {
+    fileprivate static func getUTCTime(for lander: Lander = .M20, _ sol:Int, hours:Int, minutes:Int, seconds:Double) -> (Date) {
         let totalHours = Double(hours) + Double(minutes)/60.0 + seconds/3600.0
         let mtc:Double = totalHours + (360.0-longitude(for: lander))*24.0/360.0 //in Mars hours
         let msd:Double = Double(sol) + epochSeconds(for: lander) + mtc/24.0 //in Mars days //+ (360.0-WEST_LONGITUDE/360.0)
@@ -355,7 +366,7 @@ open class MarsTimeConversion {
         return Date(timeIntervalSince1970: earthTime)
     }
 
-    static func longitude(for lander: Lander = .M20) -> Double {
+    fileprivate static func longitude(for lander: Lander = .M20) -> Double {
         switch lander {
         case .M20:
             return MarsTimeConversion.PERSERVERANCE_WEST_LONGITUDE
@@ -363,31 +374,21 @@ open class MarsTimeConversion {
             return MarsTimeConversion.CURIOSITY_WEST_LONGITUDE
         }
     }
+}
 
-    static func getMarsTime(for lander: Lander = .M20, date: Date) -> (String, String) {
-        let now = date
-        let westLon = longitude(for: lander)
-        let (_, _, _, _, _, _, _, _, _, _, msd, mtc, _, _) = MarsTimeConversion.getMarsTimes(now as Date, longitude: westLon)
-        let sol = Int(msd-(360.0-westLon)/360.0)-Int(epochSeconds(for: lander))
-        let sol5d = String(format:"%05d", sol)
-        let mtcInHours:Double = MarsTimeConversion.canonicalValue24(mtc - (360.0-westLon)*24.0/360.0)
-        let hour:Int = Int(mtcInHours)
-        let hours = String(format:"%02d", hour)
-        let minute:Int = Int((mtcInHours-Double(hour))*60.0)
-        let minutes = String(format:"%02d", minute)
-        let secondDouble:Double = (mtcInHours-Double(hour))*3600.0 - Double(minute)*60.0
-        let second:Int = Int(secondDouble)
-        let seconds = String(format:"%02d", second)
-        let lmst = String("Sol \(sol5d)M\(hours):\(minutes):\(seconds)")
-        print(lmst)
-
-        let utcTime = MarsTimeConversion.getUTCTime(for: lander, sol, hours: hour, minutes: minute, seconds: secondDouble)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        formatter.timeZone = TimeZone(abbreviation: "UTC")!
-        let utc = formatter.string(from: utcTime)
-        print(utc)
-
-        return (lmst, utc)
-    }
+fileprivate struct MarsTime {
+    public var jdut:Double = 0
+    public var tt_utc_diff:Double = 0
+    public var jdtt:Double = 0
+    public var deltaJ2000:Double = 0
+    public var marsMeanAnomaly:Double = 0
+    public var angleFictiousMeanSun:Double = 0
+    public var pbs:Double = 0
+    public var v_M_diff:Double = 0
+    public var ls:Double = 0
+    public var eot:Double = 0
+    public var msd:Double = 0
+    public var mtc:Double = 0
+    public var lmst:Double = 0
+    public var ltst:Double = 0
 }
