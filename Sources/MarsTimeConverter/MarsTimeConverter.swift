@@ -29,14 +29,12 @@ public class MarsTimeConversion {
         let second:Int = Int(secondDouble)
         let seconds = String(format:"%02d", second)
         let lmst = String("Sol \(sol5d)M\(hours):\(minutes):\(seconds)")
-        print(lmst)
 
         let utcTime = MarsTimeConversion.getUTCTime(for: lander, sol, hours: hour, minutes: minute, seconds: secondDouble)
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         formatter.timeZone = TimeZone(abbreviation: "UTC")!
         let utc = formatter.string(from: utcTime)
-        print(utc)
 
         return (lmst, utc)
     }
