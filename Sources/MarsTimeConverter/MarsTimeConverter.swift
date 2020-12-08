@@ -352,7 +352,7 @@ public class MarsTimeConversion {
         }
     }
 
-    fileprivate static func getUTCTime(for lander: Lander = .M20, _ sol:Int, hours:Int, minutes:Int, seconds:Double) -> (Date) {
+    public static func getUTCTime(for lander: Lander = .M20, _ sol:Int, hours:Int, minutes:Int, seconds:Double) -> (Date) {
         let totalHours = Double(hours) + Double(minutes)/60.0 + seconds/3600.0
         let mtc:Double = totalHours + (360.0-longitude(for: lander))*24.0/360.0 //in Mars hours
         let msd:Double = Double(sol) + epochSeconds(for: lander) + mtc/24.0 //in Mars days //+ (360.0-WEST_LONGITUDE/360.0)
