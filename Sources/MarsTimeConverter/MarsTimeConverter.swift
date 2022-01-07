@@ -13,7 +13,16 @@ public enum Lander {
 }
 
 public class MarsTimeConversion {
-    
+
+    static let formatter = makeDateFormatter()
+
+    static func makeDateFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        formatter.timeZone = TimeZone(abbreviation: "UTC")!
+        return formatter
+    }
+
     public static func getMarsTime(for lander: Lander = .M20, date: Date) -> (String, String) {
         let now = date
         let westLon = longitude(for: lander)
@@ -31,9 +40,6 @@ public class MarsTimeConversion {
         let lmst = String("Sol \(sol5d)M\(hours):\(minutes):\(seconds)")
 
         let utcTime = MarsTimeConversion.getUTCTime(for: lander, sol, hours: hour, minutes: minute, seconds: secondDouble)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        formatter.timeZone = TimeZone(abbreviation: "UTC")!
         let utc = formatter.string(from: utcTime)
 
         return (lmst, utc)
